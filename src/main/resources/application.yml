@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:telestock;DB_CLOSE_DELAY=-1
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+server:
+  port: 8080
+
+gemini:
+  api:
+    key: ""
+    model: "gemini-2.5-flash"
+
+telegram:
+  bot:
+    token: ""
+  chat:
+    id: ""
