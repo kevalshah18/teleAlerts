@@ -7,9 +7,11 @@ C:\Users\keval\teleStock\src\main\java\com\telestock\TeleStockApplication.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\model\CandidateSignal.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\model\TradeRecord.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\model\SystemConfig.java
+C:\Users\keval\teleStock\src\main\java\com\telestock\config\AppConfig.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\repository\PositionRepository.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\strategy\StrategyEngine.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\model\MarketData.java
+C:\Users\keval\teleStock\src\main\java\com\telestock\controller\HealthController.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\config\ConfigService.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\ai\GeminiAiService.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\repository\TradeRecordRepository.java

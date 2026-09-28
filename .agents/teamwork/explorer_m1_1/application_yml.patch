@@ -1,0 +1,21 @@
+--- a/src/main/resources/application.yml
++++ b/src/main/resources/application.yml
+@@ -13,14 +13,14 @@
+ server:
+-  port: 8080
++  port: ${PORT:8080}
+ 
+ gemini:
+   api:
+-    key: ""
+-    model: "gemini-2.5-flash"
++    key: ${GEMINI_API_KEY:}
++    model: ${GEMINI_API_MODEL:gemini-2.5-flash}
+ 
+ telegram:
+   bot:
+-    token: ""
++    token: ${TELEGRAM_BOT_TOKEN:}
+   chat:
+-    id: ""
++    id: ${TELEGRAM_CHAT_ID:}

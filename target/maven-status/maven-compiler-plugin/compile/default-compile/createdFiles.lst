@@ -1,5 +1,6 @@
 com\telestock\strategy\StrategyEngine.class
 com\telestock\repository\PositionRepository.class
+com\telestock\controller\HealthController.class
 com\telestock\repository\TradeRecordRepository.class
 com\telestock\model\SystemConfig.class
 com\telestock\controller\DashboardController.class
@@ -7,6 +8,7 @@ com\telestock\model\TradeRecord.class
 com\telestock\ai\GeminiAiService.class
 com\telestock\ai\GeminiAiService$GeminiDecision.class
 com\telestock\config\ConfigService.class
+com\telestock\config\AppConfig.class
 com\telestock\feed\NseSymbolDiscoveryService.class
 com\telestock\model\Position.class
 com\telestock\strategy\StrategyEngine$CurrentCandle.class

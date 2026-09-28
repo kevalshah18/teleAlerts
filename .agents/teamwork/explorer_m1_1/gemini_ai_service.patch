@@ -1,0 +1,10 @@
+--- a/src/main/java/com/telestock/ai/GeminiAiService.java
++++ b/src/main/java/com/telestock/ai/GeminiAiService.java
+@@ -21,5 +21,5 @@ public class GeminiAiService {
+-    @Value("")
++    @Value("${gemini.api.key:}")
+     private String apiKey;
+ 
+-    @Value("")
++    @Value("${gemini.api.model:gemini-2.5-flash}")
+     private String model;

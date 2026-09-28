@@ -18,10 +18,10 @@ public class GeminiAiService {
     private final RestClient restClient = RestClient.create();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @Value("")
+    @Value("${gemini.api.key:}")
     private String apiKey;
 
-    @Value("")
+    @Value("${gemini.api.model:gemini-2.5-flash}")
     private String model;
 
     public GeminiDecision evaluateSignal(String symbol, double price, String type) {

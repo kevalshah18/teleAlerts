@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.telestock.config.ConfigService;
 import com.telestock.model.MarketData;
+import com.telestock.strategy.StrategyEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LiveMarketDataService {
     private final ConfigService configService;
     private final NseSymbolDiscoveryService symbolDiscoveryService;
+    private final StrategyEngine strategyEngine;
     private final RestClient restClient = RestClient.create();
     private final ObjectMapper mapper = new ObjectMapper();
     
@@ -51,8 +53,7 @@ public class LiveMarketDataService {
         
         String symbolStr = String.join(",", batch);
         try {
-            // v8 Spark endpoint doesn't require authentication/crumbs
-            String url = "https://query1.finance.yahoo.com/v8/finance/spark?symbols=" + symbolStr;
+            String url = "https://query1.finance.yahoo.com/v8/finance/spark?interval=5m&range=2d&symbols=" + symbolStr;
             String response = restClient.get()
                     .uri(url)
                     .header("User-Agent", "Mozilla/5.0")
@@ -69,8 +70,21 @@ public class LiveMarketDataService {
                 double ltp = node.path("previousClose").asDouble(0);
                 if (node.has("regularMarketPrice")) {
                     ltp = node.path("regularMarketPrice").asDouble(0);
-                } else if (node.has("close") && node.path("close").isArray() && node.path("close").size() > 0) {
+                } 
+                
+                if (node.has("close") && node.path("close").isArray() && node.path("close").size() > 0) {
                     JsonNode closeArr = node.path("close");
+                    
+                    // DYNAMIC WARM-UP: If engine has no history, feed it the last 2 days instantly!
+                    if (strategyEngine.getCandleCloses(sym).isEmpty()) {
+                        for(int i = 0; i < closeArr.size(); i++) {
+                            if (!closeArr.get(i).isNull()) {
+                                strategyEngine.addCandleClose(sym, closeArr.get(i).asDouble());
+                            }
+                        }
+                    }
+                    
+                    // Grab the absolute latest price for LTP
                     for(int i = closeArr.size()-1; i>=0; i--) {
                         if (!closeArr.get(i).isNull()) {
                             ltp = closeArr.get(i).asDouble();
@@ -84,9 +98,9 @@ public class LiveMarketDataService {
                     data.setSymbol(sym);
                     data.setLtp(ltp);
                     data.setOpen(node.path("previousClose").asDouble(ltp));
-                    data.setHigh(ltp); // Spark doesn't always have high/low easily
+                    data.setHigh(ltp); 
                     data.setLow(ltp);
-                    data.setVolume(10000L); // Mock volume for now
+                    data.setVolume(10000L); 
                     data.setTimestamp(LocalDateTime.now());
                     
                     latestDataMap.put(sym, data);

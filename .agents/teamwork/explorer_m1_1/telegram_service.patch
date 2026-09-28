@@ -1,0 +1,10 @@
+--- a/src/main/java/com/telestock/telegram/TelegramService.java
++++ b/src/main/java/com/telestock/telegram/TelegramService.java
+@@ -16,5 +16,5 @@ public class TelegramService {
+-    @Value("")
++    @Value("${telegram.bot.token:}")
+     private String token;
+ 
+-    @Value("")
++    @Value("${telegram.chat.id:}")
+     private String chatId;

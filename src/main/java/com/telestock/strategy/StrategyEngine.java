@@ -16,10 +16,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,8 @@ public class StrategyEngine {
     private final GeminiAiService aiService;
     private final LedgerService ledgerService;
     private final PositionRepository positionRepository;
+    
+    public static final int MAX_CONCURRENT_POSITIONS = 5;
     
     // Store 5-min candle close prices
     private final Map<String, List<Double>> candleCloses = new ConcurrentHashMap<>();
@@ -54,9 +57,9 @@ public class StrategyEngine {
             
             // If 5 minutes have passed, close the candle
             if (ChronoUnit.MINUTES.between(candle.startTime, LocalDateTime.now()) >= 5) {
-                List<Double> closes = candleCloses.computeIfAbsent(symbol, k -> new ArrayList<>());
+                List<Double> closes = candleCloses.computeIfAbsent(symbol, k -> new CopyOnWriteArrayList<>());
                 closes.add(candle.close);
-                if (closes.size() > 50) {
+                while (closes.size() > 50) {
                     closes.remove(0); // keep last 50 candles
                 }
                 
@@ -72,15 +75,40 @@ public class StrategyEngine {
                     // Crossover buy logic
                     if (ema9 > ema21 && rsi14 >= 45 && rsi14 <= 65) {
                         if (positionRepository.findBySymbol(symbol).isEmpty()) {
+                            long currentPositions = positionRepository.count();
+                            if (currentPositions >= MAX_CONCURRENT_POSITIONS) {
+                                log.info("Max concurrent positions ({}) reached. Skipping candidate BUY for {}", MAX_CONCURRENT_POSITIONS, symbol);
+                                continue;
+                            }
+                            
+                            SystemConfig config = configService.getConfig();
+                            double availableCapital = (config != null && config.getAvailableCapital() != null) ? config.getAvailableCapital() : 0.0;
+                            if (availableCapital < ltp) {
+                                log.info("Available capital Rs {:.2f} is less than LTP Rs {:.2f} for {}. Skipping candidate BUY.", availableCapital, ltp, symbol);
+                                continue;
+                            }
+                            
                             log.info("Candidate BUY Signal for {}", symbol);
                             CandidateSignal signal = new CandidateSignal(symbol, ltp, "BUY", rsi14, LocalDateTime.now());
                             
                             // AI Veto
                             GeminiAiService.GeminiDecision decision = aiService.evaluateSignal(symbol, ltp, "BUY");
                             if (decision.isApproval()) {
-                                int qty = (int) (10000 / ltp); // Simulate 10000 capital per trade
-                                if (qty == 0) qty = 1;
-                                ledgerService.executeBuy(symbol, ltp, qty, decision.getReasoning());
+                                currentPositions = positionRepository.count();
+                                if (currentPositions >= MAX_CONCURRENT_POSITIONS) {
+                                    log.warn("Max concurrent positions reached during AI veto evaluation for {}. Order aborted.", symbol);
+                                    continue;
+                                }
+                                int openSlots = (int) (MAX_CONCURRENT_POSITIONS - currentPositions);
+                                config = configService.getConfig();
+                                availableCapital = (config != null && config.getAvailableCapital() != null) ? config.getAvailableCapital() : 0.0;
+                                
+                                int qty = calculatePositionSize(ltp, availableCapital, openSlots);
+                                if (qty > 0) {
+                                    ledgerService.executeBuy(symbol, ltp, qty, decision.getReasoning());
+                                } else {
+                                    log.warn("Calculated position size is 0 for {}. Order aborted.", symbol);
+                                }
                             }
                         }
                     }
@@ -89,7 +117,7 @@ public class StrategyEngine {
         }
     }
     
-    private void checkExitConditions(String symbol, double ltp) {
+    public void checkExitConditions(String symbol, double ltp) {
         positionRepository.findBySymbol(symbol).ifPresent(pos -> {
             if (ltp >= pos.getTarget() || ltp <= pos.getStopLoss()) {
                 ledgerService.executeSell(pos, ltp);
@@ -97,28 +125,97 @@ public class StrategyEngine {
         });
     }
 
-    private double calculateEMA(List<Double> prices, int period) {
+    public double calculateEMA(List<Double> prices, int period) {
+        if (prices == null || prices.isEmpty() || period <= 0) {
+            return 0.0;
+        }
+        if (prices.size() < period) {
+            double sum = 0.0;
+            for (Double p : prices) {
+                sum += (p != null ? p : 0.0);
+            }
+            return sum / prices.size();
+        }
+
         double multiplier = 2.0 / (period + 1);
-        double ema = prices.get(prices.size() - period);
-        for (int i = prices.size() - period + 1; i < prices.size(); i++) {
+
+        // Seed with Simple Moving Average (SMA) of the first 'period' elements
+        double sum = 0.0;
+        for (int i = 0; i < period; i++) {
+            sum += prices.get(i);
+        }
+        double ema = sum / period;
+
+        // Apply exponential smoothing over all subsequent prices
+        for (int i = period; i < prices.size(); i++) {
             ema = (prices.get(i) - ema) * multiplier + ema;
         }
+
         return ema;
     }
     
-    private double calculateRSI(List<Double> prices, int period) {
-        double gains = 0;
-        double losses = 0;
-        for (int i = prices.size() - period; i < prices.size() - 1; i++) {
-            double diff = prices.get(i+1) - prices.get(i);
-            if (diff > 0) gains += diff;
-            else losses -= diff;
+    public double calculateRSI(List<Double> prices, int period) {
+        if (prices == null || period <= 0 || prices.size() <= period) {
+            return 50.0; // Insufficient history (< period + 1 prices), return neutral
         }
+
+        int start = prices.size() - period - 1;
+        double gains = 0.0;
+        double losses = 0.0;
+
+        for (int i = start; i < prices.size() - 1; i++) {
+            double diff = prices.get(i + 1) - prices.get(i);
+            if (diff > 0.0) {
+                gains += diff;
+            } else if (diff < 0.0) {
+                losses += -diff;
+            }
+        }
+
         double avgGain = gains / period;
         double avgLoss = losses / period;
-        if (avgLoss == 0) return 100;
+
+        // Flat market guard: no price movement is neutral 50.0, not 100.0
+        if (avgGain == 0.0 && avgLoss == 0.0) {
+            return 50.0;
+        }
+        if (avgLoss == 0.0) {
+            return 100.0; // Pure upward movement with zero pullbacks
+        }
+
         double rs = avgGain / avgLoss;
-        return 100 - (100 / (1 + rs));
+        return 100.0 - (100.0 / (1.0 + rs));
+    }
+
+    public int calculatePositionSize(double ltp, double availableCapital, int openSlots) {
+        if (openSlots <= 0 || availableCapital <= 0.0 || ltp <= 0.0 || availableCapital < ltp) {
+            return 0;
+        }
+        double capitalPerSlot = availableCapital / openSlots;
+        int qty = (int) (capitalPerSlot / ltp);
+        if (qty == 0 && availableCapital >= ltp) {
+            qty = 1;
+        }
+        if ((qty * ltp) > availableCapital) {
+            qty = (int) (availableCapital / ltp);
+        }
+        return qty;
+    }
+
+    public void addCandleClose(String symbol, double close) {
+        List<Double> closes = candleCloses.computeIfAbsent(symbol, k -> new CopyOnWriteArrayList<>());
+        closes.add(close);
+        while (closes.size() > 50) {
+            closes.remove(0); // keep last 50 candles
+        }
+    }
+
+    public List<Double> getCandleCloses(String symbol) {
+        return candleCloses.getOrDefault(symbol, Collections.emptyList());
+    }
+
+    public Map<String, List<Double>> getAllCandleCloses() {
+        return Collections.unmodifiableMap(candleCloses);
     }
     
     private static class CurrentCandle {
