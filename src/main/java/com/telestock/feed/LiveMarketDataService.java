@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LiveMarketDataService {
     private final ConfigService configService;
     private final NseSymbolDiscoveryService symbolDiscoveryService;
-    @org.springframework.context.annotation.Lazy private final StrategyEngine strategyEngine;
+    @org.springframework.beans.factory.annotation.Autowired @org.springframework.context.annotation.Lazy private StrategyEngine strategyEngine;
     private final RestClient restClient = RestClient.create();
     private final ObjectMapper mapper = new ObjectMapper();
     
