@@ -35,9 +35,15 @@ public class NseSymbolDiscoveryService {
         "BEL.NS","INDUSINDBK.NS","CHOLAFIN.NS","SBILIFE.NS","PIDILITIND.NS","TRENT.NS","EICHERMOT.NS","DRREDDY.NS"
     );
 
-    @PostConstruct
+        @PostConstruct
     public void init() {
-        refreshSymbols();
+        // Start with NIFTY 50 immediately so the server doesn't crash on cold boot
+        activeSymbols = new ArrayList<>(fallbackNifty50);
+        
+        // Fetch the massive 70MB JSON in a background thread so we don't block Tomcat from opening the port!
+        new Thread(() -> {
+            refreshSymbols();
+        }).start();
     }
 
     // Refresh every day at 8 AM IST
