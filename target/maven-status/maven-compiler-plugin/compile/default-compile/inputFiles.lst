@@ -15,6 +15,7 @@ C:\Users\keval\teleStock\src\main\java\com\telestock\controller\HealthController
 C:\Users\keval\teleStock\src\main\java\com\telestock\config\ConfigService.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\ai\GeminiAiService.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\repository\TradeRecordRepository.java
+C:\Users\keval\teleStock\src\main\java\com\telestock\config\SecurityConfig.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\feed\LiveMarketDataService.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\ledger\LedgerService.java
 C:\Users\keval\teleStock\src\main\java\com\telestock\controller\DashboardController.java

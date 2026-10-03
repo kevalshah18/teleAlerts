@@ -27,3 +27,32 @@ After fixing the application, provide a foolproof, live way to run this on the c
 ### Programmatic Verification
 - [ ] A programmatic test script must be created and executed to prove the server boots cleanly on port 8080.
 - [ ] The programmatic test script must prove that the bot successfully calculates indicators (EMA/RSI) and can execute a simulated trade immediately after a fresh reboot, without waiting for hours of live data collection.
+
+
+## 2026-10-03T16:22:41Z
+
+# Teamwork Project Prompt
+
+> Requested team: Full team
+
+Implement a final security sweep on the `teleStock` application to ensure no secrets are checked into source control, and build a secure login page where credentials are not exposed on GitHub.
+
+Working directory: c:\Users\keval\teleStock
+Integrity mode: development
+
+## Requirements
+
+### R1. Secrets Audit & Remediation
+Verify that all environment variables (API keys, bot tokens) are strictly local and not hardcoded anywhere in the git history or codebase. If any are found, remove them.
+
+### R2. Secure Login Page
+Create a basic authentication login page (e.g. using Spring Security) that guards the dashboard. The application code must be pushed to GitHub so Render can build it, but the username (`keval`) and password (`keval123`) must **not** be hardcoded anywhere in the source code. They must be configured to pull from Environment Variables (`ADMIN_USER`, `ADMIN_PASS`) so absolutely no one else can see them.
+
+### R3. Final Security Check
+Perform a general security review of the application to ensure it is up to date and safe for public deployment on Render.
+
+## Acceptance Criteria
+
+### Programmatic Verification
+- [ ] An automated script must be executed to prove that the exact string `keval123` and all API keys do not exist anywhere in the tracked git files.
+- [ ] An automated test script must prove that an unauthenticated request to the dashboard is blocked (401/302), and a request with the correct environment credentials successfully loads the dashboard.

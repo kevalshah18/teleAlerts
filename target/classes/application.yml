@@ -1,4 +1,8 @@
 spring:
+  security:
+    user:
+      name: ${ADMIN_USER:keval}
+      password: ${ADMIN_PASS:LOCKDOWN_ACTIVE_NO_PASSWORD_SET_1a2b3c}
   main:
     allow-circular-references: true
   datasource:
