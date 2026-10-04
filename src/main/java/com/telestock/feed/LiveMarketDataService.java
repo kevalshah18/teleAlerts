@@ -31,6 +31,16 @@ public class LiveMarketDataService {
     
     @Scheduled(fixedRate = 2000)
     public void pollMarketData() {
+        // Market hours check: Only poll during NSE trading hours (Mon-Fri, 9:15 AM - 3:30 PM IST)
+        java.time.ZonedDateTime nowIst = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata"));
+        if (nowIst.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || nowIst.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+            return;
+        }
+        java.time.LocalTime timeIst = nowIst.toLocalTime();
+        if (timeIst.isBefore(java.time.LocalTime.of(9, 15)) || timeIst.isAfter(java.time.LocalTime.of(15, 30))) {
+            return;
+        }
+
         if (!configService.getConfig().getTradingEnabled()) {
             return;
         }

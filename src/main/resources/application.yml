@@ -6,7 +6,7 @@ spring:
   main:
     allow-circular-references: true
   datasource:
-    url: jdbc:h2:mem:telestock;DB_CLOSE_DELAY=-1
+    url: jdbc:h2:file:./data/telestock;DB_CLOSE_ON_EXIT=FALSE;AUTO_SERVER=TRUE
     driverClassName: org.h2.Driver
     username: sa
     password: password
