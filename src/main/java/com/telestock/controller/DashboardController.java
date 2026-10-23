@@ -12,6 +12,7 @@ import com.telestock.telegram.TelegramService;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
@@ -37,9 +38,15 @@ public class DashboardController {
     private final LiveMarketDataService marketDataService;
     private final PositionRepository positionRepository;
     private final TradeRecordRepository tradeRecordRepository;
-    private final TelegramService telegramService;
+
+    @Autowired(required = false)
+    private TelegramService telegramService;
 
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+
+    public void setTelegramService(TelegramService telegramService) {
+        this.telegramService = telegramService;
+    }
 
     @GetMapping("/config")
     public SystemConfig getConfig() {
@@ -63,7 +70,7 @@ public class DashboardController {
 
         status.put("marketOpen", isMarketHours);
         status.put("istTime", nowIst.format(DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm:ss")));
-        status.put("telegramConfigured", telegramService.isConfigured());
+        status.put("telegramConfigured", telegramService != null && telegramService.isConfigured());
         status.put("trackedSymbolsCount", marketDataService.getAllLatestData().size());
         status.put("tradingEnabled", configService.getConfig().getTradingEnabled());
         return status;
@@ -72,6 +79,11 @@ public class DashboardController {
     @PostMapping("/telegram/test")
     public Map<String, Object> testTelegram() {
         Map<String, Object> result = new HashMap<>();
+        if (telegramService == null) {
+            result.put("success", false);
+            result.put("message", "TelegramService is not loaded.");
+            return result;
+        }
         String outcome = telegramService.sendTestAlert();
         if ("SUCCESS".equals(outcome)) {
             result.put("success", true);
