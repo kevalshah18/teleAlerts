@@ -65,50 +65,49 @@ public class StrategyEngine {
                 
                 // Reset for next candle
                 currentCandles.put(symbol, new CurrentCandle(ltp, LocalDateTime.now()));
+            }
+            
+            // Evaluate strategy using available candle closes
+            List<Double> closes = candleCloses.get(symbol);
+            if (closes != null && closes.size() >= 21) {
+                double ema9 = calculateEMA(closes, 9);
+                double ema21 = calculateEMA(closes, 21);
+                double rsi14 = calculateRSI(closes, 14);
                 
-                // Evaluate strategy on closed candles
-                if (closes.size() >= 21) {
-                    double ema9 = calculateEMA(closes, 9);
-                    double ema21 = calculateEMA(closes, 21);
-                    double rsi14 = calculateRSI(closes, 14);
-                    
-                    // Crossover buy logic
-                    if (ema9 > ema21 && rsi14 >= 45 && rsi14 <= 65) {
-                        if (positionRepository.findBySymbol(symbol).isEmpty()) {
-                            long currentPositions = positionRepository.count();
+                // Crossover buy logic
+                if (ema9 > ema21 && rsi14 >= 45 && rsi14 <= 65) {
+                    if (positionRepository.findBySymbol(symbol).isEmpty()) {
+                        long currentPositions = positionRepository.count();
+                        if (currentPositions >= MAX_CONCURRENT_POSITIONS) {
+                            continue;
+                        }
+                        
+                        SystemConfig config = configService.getConfig();
+                        double availableCapital = (config != null && config.getAvailableCapital() != null) ? config.getAvailableCapital() : 0.0;
+                        if (availableCapital < ltp) {
+                            continue;
+                        }
+                        
+                        log.info("Candidate BUY Signal detected for {} at Rs {}", symbol, ltp);
+                        CandidateSignal signal = new CandidateSignal(symbol, ltp, "BUY", rsi14, LocalDateTime.now());
+                        
+                        // AI Veto
+                        GeminiAiService.GeminiDecision decision = aiService.evaluateSignal(symbol, ltp, "BUY");
+                        if (decision.isApproval()) {
+                            currentPositions = positionRepository.count();
                             if (currentPositions >= MAX_CONCURRENT_POSITIONS) {
-                                log.info("Max concurrent positions ({}) reached. Skipping candidate BUY for {}", MAX_CONCURRENT_POSITIONS, symbol);
+                                log.warn("Max concurrent positions reached during AI veto evaluation for {}. Order aborted.", symbol);
                                 continue;
                             }
+                            int openSlots = (int) (MAX_CONCURRENT_POSITIONS - currentPositions);
+                            config = configService.getConfig();
+                            availableCapital = (config != null && config.getAvailableCapital() != null) ? config.getAvailableCapital() : 0.0;
                             
-                            SystemConfig config = configService.getConfig();
-                            double availableCapital = (config != null && config.getAvailableCapital() != null) ? config.getAvailableCapital() : 0.0;
-                            if (availableCapital < ltp) {
-                                log.info("Available capital Rs {:.2f} is less than LTP Rs {:.2f} for {}. Skipping candidate BUY.", availableCapital, ltp, symbol);
-                                continue;
-                            }
-                            
-                            log.info("Candidate BUY Signal for {}", symbol);
-                            CandidateSignal signal = new CandidateSignal(symbol, ltp, "BUY", rsi14, LocalDateTime.now());
-                            
-                            // AI Veto
-                            GeminiAiService.GeminiDecision decision = aiService.evaluateSignal(symbol, ltp, "BUY");
-                            if (decision.isApproval()) {
-                                currentPositions = positionRepository.count();
-                                if (currentPositions >= MAX_CONCURRENT_POSITIONS) {
-                                    log.warn("Max concurrent positions reached during AI veto evaluation for {}. Order aborted.", symbol);
-                                    continue;
-                                }
-                                int openSlots = (int) (MAX_CONCURRENT_POSITIONS - currentPositions);
-                                config = configService.getConfig();
-                                availableCapital = (config != null && config.getAvailableCapital() != null) ? config.getAvailableCapital() : 0.0;
-                                
-                                int qty = calculatePositionSize(ltp, availableCapital, openSlots);
-                                if (qty > 0) {
-                                    ledgerService.executeBuy(symbol, ltp, qty, decision.getReasoning());
-                                } else {
-                                    log.warn("Calculated position size is 0 for {}. Order aborted.", symbol);
-                                }
+                            int qty = calculatePositionSize(ltp, availableCapital, openSlots);
+                            if (qty > 0) {
+                                ledgerService.executeBuy(symbol, ltp, qty, decision.getReasoning());
+                            } else {
+                                log.warn("Calculated position size is 0 for {}. Order aborted.", symbol);
                             }
                         }
                     }

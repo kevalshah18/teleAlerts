@@ -8,6 +8,7 @@ import com.telestock.model.SystemConfig;
 import com.telestock.model.TradeRecord;
 import com.telestock.repository.PositionRepository;
 import com.telestock.repository.TradeRecordRepository;
+import com.telestock.telegram.TelegramService;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +17,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -30,6 +37,7 @@ public class DashboardController {
     private final LiveMarketDataService marketDataService;
     private final PositionRepository positionRepository;
     private final TradeRecordRepository tradeRecordRepository;
+    private final TelegramService telegramService;
 
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
 
@@ -41,6 +49,38 @@ public class DashboardController {
     @PostMapping("/config")
     public SystemConfig updateConfig(@RequestBody SystemConfig config) {
         return configService.updateConfig(config);
+    }
+
+    @GetMapping("/status")
+    public Map<String, Object> getSystemStatus() {
+        Map<String, Object> status = new HashMap<>();
+        ZonedDateTime nowIst = ZonedDateTime.now(ZoneId.of("Asia/Kolkata"));
+        DayOfWeek day = nowIst.getDayOfWeek();
+        LocalTime time = nowIst.toLocalTime();
+        
+        boolean isWeekday = (day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY);
+        boolean isMarketHours = isWeekday && !time.isBefore(LocalTime.of(9, 15)) && !time.isAfter(LocalTime.of(15, 30));
+
+        status.put("marketOpen", isMarketHours);
+        status.put("istTime", nowIst.format(DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm:ss")));
+        status.put("telegramConfigured", telegramService.isConfigured());
+        status.put("trackedSymbolsCount", marketDataService.getAllLatestData().size());
+        status.put("tradingEnabled", configService.getConfig().getTradingEnabled());
+        return status;
+    }
+
+    @PostMapping("/telegram/test")
+    public Map<String, Object> testTelegram() {
+        Map<String, Object> result = new HashMap<>();
+        String outcome = telegramService.sendTestAlert();
+        if ("SUCCESS".equals(outcome)) {
+            result.put("success", true);
+            result.put("message", "Test alert successfully delivered to your Telegram!");
+        } else {
+            result.put("success", false);
+            result.put("message", outcome);
+        }
+        return result;
     }
     
     /**
