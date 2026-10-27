@@ -21,11 +21,13 @@ public class GeminiAiService {
     @Value("${gemini.api.key:}")
     private String apiKey;
 
-    @Value("${gemini.api.model:gemini-2.5-flash}")
+    @Value("${gemini.api.model:gemini-1.5-flash}")
     private String model;
 
+    private boolean warningSent = false;
+
     public GeminiDecision evaluateSignal(String symbol, double price, String type) {
-        if (apiKey == null || apiKey.isEmpty()) {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
             log.warn("Gemini API Key missing, defaulting to approved");
             return new GeminiDecision(true, 0.0, "API key missing, auto-approved.");
         }
@@ -63,13 +65,18 @@ public class GeminiAiService {
             
             if (!decision.isApproval() || decision.getSentimentScore() < -0.2) {
                 decision.setApproval(false);
-                telegramService.sendMessage("ðŸš« *AI VETO* for " + symbol + " " + type + "\nReasoning: " + decision.getReasoning() + "\nSentiment: " + decision.getSentimentScore());
+                telegramService.sendMessage("🚫 *AI VETO* for " + symbol + " " + type + "\nReasoning: " + decision.getReasoning() + "\nSentiment: " + decision.getSentimentScore());
             }
             
             return decision;
         } catch (Exception e) {
-            log.error("Gemini API call failed", e);
-            return new GeminiDecision(false, 0.0, "AI check failed: " + e.getMessage());
+            log.error("Gemini API call failed: {}", e.getMessage());
+            if (!warningSent) {
+                telegramService.sendMessage("⚠️ *Gemini AI Notice*: Gemini API returned an error (" + e.getMessage() + "). Gracefully bypassing AI veto to ensure technical trades continue executing!");
+                warningSent = true;
+            }
+            // Graceful fallback: Do NOT freeze trading if Google AI is unavailable or the key has an issue!
+            return new GeminiDecision(true, 0.0, "AI bypassed due to API error: " + e.getMessage());
         }
     }
     
