@@ -44,6 +44,16 @@ public class StrategyEngine {
     public void evaluateSignals() {
         if (!configService.getConfig().getTradingEnabled()) return;
         
+        // Market hours check: Only evaluate during NSE trading hours (Mon-Fri, 9:15 AM - 3:30 PM IST)
+        java.time.ZonedDateTime nowIst = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Kolkata"));
+        if (nowIst.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || nowIst.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+            return;
+        }
+        java.time.LocalTime timeIst = nowIst.toLocalTime();
+        if (timeIst.isBefore(java.time.LocalTime.of(9, 15)) || timeIst.isAfter(java.time.LocalTime.of(15, 30))) {
+            return;
+        }
+        
         Map<String, MarketData> latestData = dataService.getAllLatestData();
         for (Map.Entry<String, MarketData> entry : latestData.entrySet()) {
             String symbol = entry.getKey();

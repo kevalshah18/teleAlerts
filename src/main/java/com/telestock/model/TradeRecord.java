@@ -1,5 +1,6 @@
 package com.telestock.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -33,5 +34,6 @@ public class TradeRecord {
     private double grossPnl;
     private double netPnl;
     
+    @Column(length = 2048)
     private String geminiReasoning;
 }

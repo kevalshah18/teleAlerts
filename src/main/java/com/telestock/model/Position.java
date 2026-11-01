@@ -1,5 +1,6 @@
 package com.telestock.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,5 +21,7 @@ public class Position {
     private double stopLoss;
     private double target;
     private LocalDateTime entryTime;
+
+    @Column(length = 2048)
     private String geminiReasoning;
 }

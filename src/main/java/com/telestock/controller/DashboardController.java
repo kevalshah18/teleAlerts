@@ -58,6 +58,12 @@ public class DashboardController {
         return configService.updateConfig(config);
     }
 
+    @PostMapping("/config/reset")
+    public SystemConfig resetCapital() {
+        log.info("Manual capital reset requested. Resetting capital to Rs 10000.00");
+        return configService.resetCapital(10000.0);
+    }
+
     @GetMapping("/status")
     public Map<String, Object> getSystemStatus() {
         Map<String, Object> status = new HashMap<>();

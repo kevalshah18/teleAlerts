@@ -62,6 +62,9 @@ public class GeminiAiService {
             }
 
             GeminiDecision decision = mapper.readValue(jsonPart, GeminiDecision.class);
+            if (decision.getReasoning() != null && decision.getReasoning().length() > 500) {
+                decision.setReasoning(decision.getReasoning().substring(0, 500));
+            }
             
             if (!decision.isApproval() || decision.getSentimentScore() < -0.2) {
                 decision.setApproval(false);
@@ -71,12 +74,16 @@ public class GeminiAiService {
             return decision;
         } catch (Exception e) {
             log.error("Gemini API call failed: {}", e.getMessage());
+            String errDetail = e.getMessage() != null ? e.getMessage() : "Unknown error";
+            if (errDetail.length() > 150) {
+                errDetail = errDetail.substring(0, 150) + "...";
+            }
             if (!warningSent) {
-                telegramService.sendMessage("⚠️ *Gemini AI Notice*: Gemini API returned an error (" + e.getMessage() + "). Gracefully bypassing AI veto to ensure technical trades continue executing!");
+                telegramService.sendMessage("⚠️ *Gemini AI Notice*: Gemini API returned an error (" + errDetail + "). Gracefully bypassing AI veto to ensure technical trades continue executing!");
                 warningSent = true;
             }
             // Graceful fallback: Do NOT freeze trading if Google AI is unavailable or the key has an issue!
-            return new GeminiDecision(true, 0.0, "AI bypassed due to API error: " + e.getMessage());
+            return new GeminiDecision(true, 0.0, "AI bypassed due to API error: " + errDetail);
         }
     }
     

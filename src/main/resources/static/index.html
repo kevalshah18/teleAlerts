@@ -33,11 +33,16 @@
                     </div>
 
                     <!-- Mobile Capital Display -->
-                    <div class="sm:hidden text-right">
-                        <div class="text-[11px] text-gray-400 uppercase tracking-wider">Capital</div>
-                        <div class="text-base font-bold font-mono text-emerald-400">
-                            ₹{{ formatNumber(config.availableCapital || 10000) }}
+                    <div class="sm:hidden text-right flex items-center gap-1.5">
+                        <div>
+                            <div class="text-[11px] text-gray-400 uppercase tracking-wider">Capital</div>
+                            <div class="text-base font-bold font-mono text-emerald-400">
+                                ₹{{ formatNumber(config.availableCapital || 10000) }}
+                            </div>
                         </div>
+                        <button @click="resetCapital" title="Reset Balance to ₹10,000" class="p-1 text-gray-400 hover:text-emerald-400">
+                            <i class="fa-solid fa-rotate-left text-xs"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -67,6 +72,9 @@
                     <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700">
                         <span class="text-gray-400">Capital:</span>
                         <span class="text-emerald-400 font-mono font-bold">₹{{ formatNumber(config.availableCapital || 10000) }}</span>
+                        <button @click="resetCapital" title="Reset Balance to ₹10,000" class="text-gray-400 hover:text-emerald-400 ml-1 transition">
+                            <i class="fa-solid fa-rotate-left text-xs"></i>
+                        </button>
                     </div>
 
                     <!-- Logout -->
@@ -346,16 +354,38 @@
                     if (val === undefined || val === null) return '0.00';
                     return Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 },
-                formatDateTime(isoString) {
-                    if (!isoString) return { date: '--', time: '--:--', full: '--' };
+                formatDateTime(val) {
+                    if (!val) return { date: '--', time: '--:--', full: '--' };
                     try {
-                        const d = new Date(isoString);
-                        if (isNaN(d.getTime())) return { date: isoString, time: '', full: isoString };
+                        let d;
+                        if (Array.isArray(val)) {
+                            d = new Date(val[0], val[1] - 1, val[2], val[3] || 0, val[4] || 0, val[5] || 0);
+                        } else {
+                            d = new Date(val);
+                        }
+                        if (isNaN(d.getTime())) return { date: String(val), time: '', full: String(val) };
                         const date = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                         const time = d.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
                         return { date, time, full: `${date} ${time}` };
                     } catch (e) {
-                        return { date: isoString, time: '', full: isoString };
+                        return { date: String(val), time: '', full: String(val) };
+                    }
+                },
+                async resetCapital() {
+                    if (!confirm("Are you sure you want to reset your trading balance back to ₹10,000.00?")) return;
+                    try {
+                        const res = await fetch('/api/config/reset', { method: 'POST' });
+                        if (res.ok) {
+                            this.config = await res.json();
+                            this.toast = {
+                                show: true,
+                                success: true,
+                                message: 'Balance successfully reset to ₹10,000.00!'
+                            };
+                            setTimeout(() => { this.toast.show = false; }, 5000);
+                        }
+                    } catch (e) {
+                        alert("Failed to reset balance.");
                     }
                 },
                 calculateWinRate() {

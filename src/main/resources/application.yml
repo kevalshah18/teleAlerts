@@ -6,12 +6,10 @@ spring:
   main:
     allow-circular-references: true
   datasource:
-    url: jdbc:h2:file:./data/telestock
-    driverClassName: org.h2.Driver
-    username: sa
-    password: password
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:h2:file:./data/telestock}}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: update
     show-sql: false

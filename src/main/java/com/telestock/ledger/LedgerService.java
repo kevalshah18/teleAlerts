@@ -10,6 +10,8 @@ import com.telestock.telegram.TelegramService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 
 @Service
@@ -21,7 +23,13 @@ public class LedgerService {
     private final TelegramService telegramService;
     private final ConfigService configService;
     
-    public void executeBuy(String symbol, double price, int quantity, String geminiReasoning) {
+    @Transactional
+    public synchronized void executeBuy(String symbol, double price, int quantity, String geminiReasoning) {
+        if (quantity <= 0 || price <= 0) {
+            log.warn("Invalid quantity ({}) or price ({}) for {}. Buy aborted.", quantity, price, symbol);
+            return;
+        }
+
         SystemConfig config = configService.getConfig();
         double buyValue = price * quantity;
         
@@ -34,6 +42,11 @@ public class LedgerService {
         config.setAvailableCapital(config.getAvailableCapital() - buyValue);
         configService.updateConfig(config);
         
+        String safeReason = geminiReasoning;
+        if (safeReason != null && safeReason.length() > 1000) {
+            safeReason = safeReason.substring(0, 1000);
+        }
+
         Position position = new Position();
         position.setSymbol(symbol);
         position.setQuantity(quantity);
@@ -41,16 +54,26 @@ public class LedgerService {
         position.setStopLoss(price * 0.985); // -1.5%
         position.setTarget(price * 1.03);  // +3.0%
         position.setEntryTime(LocalDateTime.now());
-        position.setGeminiReasoning(geminiReasoning);
+        position.setGeminiReasoning(safeReason);
         
         positionRepository.save(position);
         
         String msg = String.format("📈 *BUY Executed* \nSymbol: %s\nEntry: Rs %.2f\nQty: %d\nCost: Rs %.2f\nSL: Rs %.2f\nTarget: Rs %.2f\nCapital Left: Rs %.2f\nReason: %s",
-                symbol, price, quantity, buyValue, position.getStopLoss(), position.getTarget(), config.getAvailableCapital(), geminiReasoning);
+                symbol, price, quantity, buyValue, position.getStopLoss(), position.getTarget(), config.getAvailableCapital(), safeReason);
         telegramService.sendMessage(msg);
     }
     
-    public void executeSell(Position position, double exitPrice) {
+    @Transactional
+    public synchronized void executeSell(Position position, double exitPrice) {
+        if (position == null || exitPrice <= 0) {
+            return;
+        }
+
+        String safeReason = position.getGeminiReasoning();
+        if (safeReason != null && safeReason.length() > 1000) {
+            safeReason = safeReason.substring(0, 1000);
+        }
+
         TradeRecord record = new TradeRecord();
         record.setSymbol(position.getSymbol());
         record.setQuantity(position.getQuantity());
@@ -58,7 +81,7 @@ public class LedgerService {
         record.setExitPrice(exitPrice);
         record.setEntryTime(position.getEntryTime());
         record.setExitTime(LocalDateTime.now());
-        record.setGeminiReasoning(position.getGeminiReasoning());
+        record.setGeminiReasoning(safeReason);
         
         double buyValue = position.getEntryPrice() * position.getQuantity();
         double sellValue = exitPrice * position.getQuantity();
@@ -99,7 +122,7 @@ public class LedgerService {
         configService.updateConfig(config);
         
         String msg = String.format("📉 *SELL Executed* \nSymbol: %s\nEntry: Rs %.2f\nExit: Rs %.2f\nGross PnL: Rs %.2f\nNet PnL: Rs %.2f\nNew Capital: Rs %.2f\nReason: %s",
-                position.getSymbol(), position.getEntryPrice(), exitPrice, grossPnl, netPnl, config.getAvailableCapital(), position.getGeminiReasoning());
+                position.getSymbol(), position.getEntryPrice(), exitPrice, grossPnl, netPnl, config.getAvailableCapital(), safeReason);
         telegramService.sendMessage(msg);
     }
 }
