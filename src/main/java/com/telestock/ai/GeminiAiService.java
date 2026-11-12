@@ -34,6 +34,13 @@ public class GeminiAiService {
 
     public record ModelEndpoint(String apiVersion, String model) {}
 
+    public String getWorkingEndpointInfo() {
+        if (workingEndpoint != null) {
+            return workingEndpoint.apiVersion() + "/" + workingEndpoint.model();
+        }
+        return (model != null && !model.isBlank()) ? "v1/" + model : "v1/gemini-1.5-flash";
+    }
+
     public GeminiDecision evaluateSignal(String symbol, double price, String type) {
         if (apiKey == null || apiKey.trim().isEmpty()) {
             log.warn("Gemini API Key missing, defaulting to approved");

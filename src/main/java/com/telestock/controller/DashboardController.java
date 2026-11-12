@@ -42,10 +42,17 @@ public class DashboardController {
     @Autowired(required = false)
     private TelegramService telegramService;
 
+    @Autowired(required = false)
+    private com.telestock.ai.GeminiAiService geminiAiService;
+
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
 
     public void setTelegramService(TelegramService telegramService) {
         this.telegramService = telegramService;
+    }
+
+    public void setGeminiAiService(com.telestock.ai.GeminiAiService geminiAiService) {
+        this.geminiAiService = geminiAiService;
     }
 
     @GetMapping("/config")
@@ -97,6 +104,36 @@ public class DashboardController {
         } else {
             result.put("success", false);
             result.put("message", outcome);
+        }
+        return result;
+    }
+
+    @RequestMapping(value = "/ai/test", method = {RequestMethod.GET, RequestMethod.POST})
+    public Map<String, Object> testAi() {
+        Map<String, Object> result = new HashMap<>();
+        if (geminiAiService == null) {
+            result.put("success", false);
+            result.put("message", "GeminiAiService is not loaded.");
+            return result;
+        }
+
+        try {
+            com.telestock.ai.GeminiAiService.GeminiDecision decision = geminiAiService.evaluateSignal("RELIANCE.NS", 2500.0, "BUY");
+            boolean isBypassed = decision.getReasoning() != null && decision.getReasoning().startsWith("AI bypassed due to API error");
+            if (isBypassed) {
+                result.put("success", false);
+                result.put("message", decision.getReasoning());
+            } else {
+                result.put("success", true);
+                result.put("model", geminiAiService.getWorkingEndpointInfo());
+                result.put("sentimentScore", decision.getSentimentScore());
+                result.put("reasoning", decision.getReasoning());
+                result.put("approval", decision.isApproval());
+                result.put("message", "Gemini AI is ONLINE! (" + geminiAiService.getWorkingEndpointInfo() + ") - Reasoning: " + decision.getReasoning());
+            }
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "Test failed: " + e.getMessage());
         }
         return result;
     }

@@ -68,6 +68,14 @@
                         <span>{{ status.telegramConfigured ? 'Test Telegram' : 'Telegram Missing' }}</span>
                     </button>
 
+                    <!-- Test AI Button -->
+                    <button @click="testAi" :disabled="testingAi"
+                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition font-medium cursor-pointer"
+                            title="Verify Google Gemini AI connection and live sentiment analysis">
+                        <i :class="testingAi ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-brain'"></i>
+                        <span>{{ testingAi ? 'Testing AI...' : 'Test AI' }}</span>
+                    </button>
+
                     <!-- Desktop Capital Display -->
                     <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700">
                         <span class="text-gray-400">Capital:</span>
@@ -333,6 +341,7 @@
                     positions: [],
                     history: [],
                     testingTelegram: false,
+                    testingAi: false,
                     toast: { show: false, message: '', success: true }
                 }
             },
@@ -452,6 +461,27 @@
                     } finally {
                         this.testingTelegram = false;
                         setTimeout(() => { this.toast.show = false; }, 8000);
+                    }
+                },
+                async testAi() {
+                    this.testingAi = true;
+                    try {
+                        const res = await fetch('/api/ai/test', { method: 'POST' });
+                        const data = await res.json();
+                        this.toast = {
+                            show: true,
+                            success: data.success,
+                            message: data.message
+                        };
+                    } catch (e) {
+                        this.toast = {
+                            show: true,
+                            success: false,
+                            message: 'Network error contacting server for AI test.'
+                        };
+                    } finally {
+                        this.testingAi = false;
+                        setTimeout(() => { this.toast.show = false; }, 10000);
                     }
                 },
                 setupSSE() {
