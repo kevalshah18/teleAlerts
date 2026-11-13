@@ -6,7 +6,9 @@ RUN mvn clean package -DskipTests -Dmaven.test.skip=true
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
+RUN apk add --no-cache tzdata
+ENV TZ=Asia/Kolkata
 COPY --from=build /app/target/*.jar app.jar
 ENV PORT=8080
 EXPOSE 8080
-ENTRYPOINT ["java", "-Xmx384m", "-XX:+UseSerialGC", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Duser.timezone=Asia/Kolkata", "-Xmx384m", "-XX:+UseSerialGC", "-jar", "app.jar"]

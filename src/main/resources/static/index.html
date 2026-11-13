@@ -373,8 +373,10 @@
                             d = new Date(val);
                         }
                         if (isNaN(d.getTime())) return { date: String(val), time: '', full: String(val) };
-                        const date = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-                        const time = d.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const dateOptions = { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' };
+                        const timeOptions = { timeZone: 'Asia/Kolkata', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+                        const date = d.toLocaleDateString('en-IN', dateOptions);
+                        const time = d.toLocaleTimeString('en-IN', timeOptions) + ' IST';
                         return { date, time, full: `${date} ${time}` };
                     } catch (e) {
                         return { date: String(val), time: '', full: String(val) };

@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -111,7 +112,7 @@ public class LiveMarketDataService {
                     data.setHigh(ltp); 
                     data.setLow(ltp);
                     data.setVolume(10000L); 
-                    data.setTimestamp(LocalDateTime.now());
+                    data.setTimestamp(LocalDateTime.now(ZoneId.of("Asia/Kolkata")));
                     
                     latestDataMap.put(sym, data);
                 }

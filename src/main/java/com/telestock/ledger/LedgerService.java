@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Service
 @RequiredArgsConstructor
@@ -53,15 +56,20 @@ public class LedgerService {
         position.setEntryPrice(price);
         position.setStopLoss(price * 0.985); // -1.5%
         position.setTarget(price * 1.03);  // +3.0%
-        position.setEntryTime(LocalDateTime.now());
+        LocalDateTime nowIst = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+        position.setEntryTime(nowIst);
         position.setGeminiReasoning(safeReason);
         
         positionRepository.save(position);
+
+        String timeStr = ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
+                .format(DateTimeFormatter.ofPattern("dd-MMM-yyyy hh:mm a 'IST'"));
         
         String msg = String.format(
                 "🟢 *TRADE SIGNAL: BUY (ENTRY)*\n" +
                 "━━━━━━━━━━━━━━━━━━━━━\n" +
                 "📌 *Stock*: `%s`\n" +
+                "🕒 *Time*: `%s`\n" +
                 "💰 *Entry Price*: `Rs %.2f`\n" +
                 "📦 *Quantity*: `%d` shares (Total: Rs %.2f)\n" +
                 "🎯 *Target (Sell Limit)*: `Rs %.2f` (+3.0%%)\n" +
@@ -70,7 +78,7 @@ public class LedgerService {
                 "🧠 *AI Reasoning*: %s\n" +
                 "━━━━━━━━━━━━━━━━━━━━━\n" +
                 "💡 *Broker Setup*: Place a Target Sell Limit at *Rs %.2f* and Stop Loss at *Rs %.2f*",
-                symbol, price, quantity, buyValue, position.getTarget(), position.getStopLoss(), config.getAvailableCapital(), safeReason, position.getTarget(), position.getStopLoss());
+                symbol, timeStr, price, quantity, buyValue, position.getTarget(), position.getStopLoss(), config.getAvailableCapital(), safeReason, position.getTarget(), position.getStopLoss());
         telegramService.sendMessage(msg);
     }
     
@@ -90,8 +98,9 @@ public class LedgerService {
         record.setQuantity(position.getQuantity());
         record.setEntryPrice(position.getEntryPrice());
         record.setExitPrice(exitPrice);
+        LocalDateTime nowIst = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
         record.setEntryTime(position.getEntryTime());
-        record.setExitTime(LocalDateTime.now());
+        record.setExitTime(nowIst);
         record.setGeminiReasoning(safeReason);
         
         double buyValue = position.getEntryPrice() * position.getQuantity();
@@ -132,18 +141,21 @@ public class LedgerService {
         config.setAvailableCapital(config.getAvailableCapital() + returnedCapital);
         configService.updateConfig(config);
         
+        String timeStr = ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
+                .format(DateTimeFormatter.ofPattern("dd-MMM-yyyy hh:mm a 'IST'"));
         String pnlHeader = netPnl >= 0 ? "🟢 *TARGET HIT (PROFIT BOOKED)*" : "🔴 *STOP LOSS HIT (EXIT)*";
         double pnlPct = ((exitPrice - position.getEntryPrice()) / position.getEntryPrice()) * 100.0;
         String msg = String.format(
                 "%s\n" +
                 "━━━━━━━━━━━━━━━━━━━━━\n" +
                 "📌 *Stock*: `%s`\n" +
+                "🕒 *Time*: `%s`\n" +
                 "📥 *Entry Price*: `Rs %.2f`\n" +
                 "📤 *Exit Price*: `Rs %.2f`\n" +
                 "💵 *Net PnL*: `%sRs %.2f` (%+.2f%%)\n" +
                 "💼 *Total Capital*: `Rs %.2f`\n" +
                 "━━━━━━━━━━━━━━━━━━━━━",
-                pnlHeader, position.getSymbol(), position.getEntryPrice(), exitPrice,
+                pnlHeader, position.getSymbol(), timeStr, position.getEntryPrice(), exitPrice,
                 (netPnl >= 0 ? "+" : ""), netPnl, pnlPct,
                 config.getAvailableCapital());
         telegramService.sendMessage(msg);
