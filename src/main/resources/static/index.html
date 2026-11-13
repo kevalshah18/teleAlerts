@@ -110,7 +110,7 @@
                         class="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition"
                         :class="activeTab === 'live' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-gray-800/60 text-gray-400 hover:bg-gray-800 hover:text-gray-200'">
                     <i class="fa-solid fa-chart-pie"></i>
-                    <span>Live Trading ({{ positions.length }})</span>
+                    <span>Live Trading ({{ positions.length }}/{{ config.maxHoldings || 20 }})</span>
                 </button>
                 <button @click="activeTab = 'history'" 
                         class="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition"
@@ -118,6 +118,17 @@
                     <i class="fa-solid fa-clock-rotate-left"></i>
                     <span>Trade History ({{ history.length }})</span>
                 </button>
+
+                <!-- Max Holdings Selector -->
+                <div class="ml-auto flex items-center gap-2 text-xs text-gray-400 bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-lg">
+                    <span>Max Holdings:</span>
+                    <select :value="config.maxHoldings || 20" @change="changeMaxHoldings($event.target.value)" class="bg-gray-800 text-yellow-300 font-bold border border-gray-700 rounded px-2 py-0.5 outline-none cursor-pointer">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                    </select>
+                </div>
             </div>
         </header>
 
@@ -174,7 +185,7 @@
                         <h2 class="font-bold text-gray-200">Active Positions</h2>
                     </div>
                     <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">
-                        {{ positions.length }} / 5 slots
+                        {{ positions.length }} / {{ config.maxHoldings || 20 }} slots
                     </span>
                 </div>
 
@@ -422,6 +433,22 @@
                         const res = await fetch('/api/config');
                         if (res.ok) this.config = await res.json();
                     } catch (e) {}
+                },
+                async changeMaxHoldings(val) {
+                    try {
+                        const res = await fetch('/api/config/holdings?max=' + val, { method: 'POST' });
+                        if (res.ok) {
+                            this.config = await res.json();
+                            this.toast = {
+                                show: true,
+                                success: true,
+                                message: `Max holdings limit updated to ${val} slots!`
+                            };
+                            setTimeout(() => { this.toast.show = false; }, 5000);
+                        }
+                    } catch (e) {
+                        alert("Failed to update max holdings.");
+                    }
                 },
                 async loadStatus() {
                     try {

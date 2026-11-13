@@ -32,7 +32,17 @@ public class StrategyEngine {
     private final LedgerService ledgerService;
     private final PositionRepository positionRepository;
     
-    public static final int MAX_CONCURRENT_POSITIONS = 5;
+    public static final int MAX_CONCURRENT_POSITIONS = 20;
+
+    public int getMaxHoldings() {
+        if (configService != null) {
+            SystemConfig config = configService.getConfig();
+            if (config != null && config.getMaxHoldings() != null && config.getMaxHoldings() > 0) {
+                return config.getMaxHoldings();
+            }
+        }
+        return MAX_CONCURRENT_POSITIONS;
+    }
     
     // Store 5-min candle close prices
     private final Map<String, List<Double>> candleCloses = new ConcurrentHashMap<>();
@@ -88,7 +98,8 @@ public class StrategyEngine {
                 if (ema9 > ema21 && rsi14 >= 45 && rsi14 <= 65) {
                     if (positionRepository.findBySymbol(symbol).isEmpty()) {
                         long currentPositions = positionRepository.count();
-                        if (currentPositions >= MAX_CONCURRENT_POSITIONS) {
+                        int maxHoldings = getMaxHoldings();
+                        if (currentPositions >= maxHoldings) {
                             continue;
                         }
                         
@@ -99,17 +110,17 @@ public class StrategyEngine {
                         }
                         
                         log.info("Candidate BUY Signal detected for {} at Rs {}", symbol, ltp);
-                        CandidateSignal signal = new CandidateSignal(symbol, ltp, "BUY", rsi14, LocalDateTime.now());
+                        CandidateSignal signal = new CandidateSignal(symbol, ltp, "BUY", rsi14, LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata")));
                         
                         // AI Veto
                         GeminiAiService.GeminiDecision decision = aiService.evaluateSignal(symbol, ltp, "BUY");
                         if (decision.isApproval()) {
                             currentPositions = positionRepository.count();
-                            if (currentPositions >= MAX_CONCURRENT_POSITIONS) {
-                                log.warn("Max concurrent positions reached during AI veto evaluation for {}. Order aborted.", symbol);
+                            if (currentPositions >= maxHoldings) {
+                                log.warn("Max concurrent positions ({}) reached during AI veto evaluation for {}. Order aborted.", maxHoldings, symbol);
                                 continue;
                             }
-                            int openSlots = (int) (MAX_CONCURRENT_POSITIONS - currentPositions);
+                            int openSlots = (int) (maxHoldings - currentPositions);
                             config = configService.getConfig();
                             availableCapital = (config != null && config.getAvailableCapital() != null) ? config.getAvailableCapital() : 0.0;
                             

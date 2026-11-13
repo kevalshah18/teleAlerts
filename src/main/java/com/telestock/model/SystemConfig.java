@@ -11,4 +11,5 @@ public class SystemConfig {
     private Long id = 1L;
     private Boolean tradingEnabled = true;
     private Double availableCapital = 10000.0;
+    private Integer maxHoldings = 20;
 }

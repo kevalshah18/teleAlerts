@@ -71,6 +71,12 @@ public class DashboardController {
         return configService.resetCapital(10000.0);
     }
 
+    @PostMapping("/config/holdings")
+    public SystemConfig updateMaxHoldings(@RequestParam("max") int max) {
+        log.info("Updating max holdings limit to: {}", max);
+        return configService.updateMaxHoldings(max);
+    }
+
     @GetMapping("/status")
     public Map<String, Object> getSystemStatus() {
         Map<String, Object> status = new HashMap<>();

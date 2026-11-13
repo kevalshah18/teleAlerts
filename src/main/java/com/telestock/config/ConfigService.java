@@ -28,6 +28,12 @@ public class ConfigService {
             currentConfig.setAvailableCapital(10000.0);
             currentConfig = repository.save(currentConfig);
         }
+
+        // Initialize maxHoldings default to 20 if unset
+        if (currentConfig.getMaxHoldings() == null || currentConfig.getMaxHoldings() < 1) {
+            currentConfig.setMaxHoldings(20);
+            currentConfig = repository.save(currentConfig);
+        }
     }
     
     public SystemConfig getConfig() {
@@ -38,6 +44,12 @@ public class ConfigService {
         newConfig.setId(1L);
         currentConfig = repository.save(newConfig);
         return currentConfig;
+    }
+
+    public SystemConfig updateMaxHoldings(int maxHoldings) {
+        SystemConfig config = getConfig();
+        config.setMaxHoldings(Math.max(1, Math.min(50, maxHoldings)));
+        return updateConfig(config);
     }
 
     public SystemConfig resetCapital(double amount) {
