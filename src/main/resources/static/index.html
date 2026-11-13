@@ -86,9 +86,11 @@
                     </div>
 
                     <!-- Logout -->
-                    <a href="/logout" class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white border border-gray-700 transition" title="Log Out">
-                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                    </a>
+                    <form action="/logout" method="POST" class="inline m-0 p-0">
+                        <button type="submit" class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white border border-gray-700 transition cursor-pointer flex items-center justify-center" title="Log Out">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
 
