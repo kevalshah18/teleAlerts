@@ -58,8 +58,19 @@ public class LedgerService {
         
         positionRepository.save(position);
         
-        String msg = String.format("📈 *BUY Executed* \nSymbol: %s\nEntry: Rs %.2f\nQty: %d\nCost: Rs %.2f\nSL: Rs %.2f\nTarget: Rs %.2f\nCapital Left: Rs %.2f\nReason: %s",
-                symbol, price, quantity, buyValue, position.getStopLoss(), position.getTarget(), config.getAvailableCapital(), safeReason);
+        String msg = String.format(
+                "🟢 *TRADE SIGNAL: BUY (ENTRY)*\n" +
+                "━━━━━━━━━━━━━━━━━━━━━\n" +
+                "📌 *Stock*: `%s`\n" +
+                "💰 *Entry Price*: `Rs %.2f`\n" +
+                "📦 *Quantity*: `%d` shares (Total: Rs %.2f)\n" +
+                "🎯 *Target (Sell Limit)*: `Rs %.2f` (+3.0%%)\n" +
+                "🛑 *Stop Loss Limit*: `Rs %.2f` (-1.5%%)\n" +
+                "💼 *Capital Left*: `Rs %.2f`\n" +
+                "🧠 *AI Reasoning*: %s\n" +
+                "━━━━━━━━━━━━━━━━━━━━━\n" +
+                "💡 *Broker Setup*: Place a Target Sell Limit at *Rs %.2f* and Stop Loss at *Rs %.2f*",
+                symbol, price, quantity, buyValue, position.getTarget(), position.getStopLoss(), config.getAvailableCapital(), safeReason, position.getTarget(), position.getStopLoss());
         telegramService.sendMessage(msg);
     }
     
@@ -121,8 +132,20 @@ public class LedgerService {
         config.setAvailableCapital(config.getAvailableCapital() + returnedCapital);
         configService.updateConfig(config);
         
-        String msg = String.format("📉 *SELL Executed* \nSymbol: %s\nEntry: Rs %.2f\nExit: Rs %.2f\nGross PnL: Rs %.2f\nNet PnL: Rs %.2f\nNew Capital: Rs %.2f\nReason: %s",
-                position.getSymbol(), position.getEntryPrice(), exitPrice, grossPnl, netPnl, config.getAvailableCapital(), safeReason);
+        String pnlHeader = netPnl >= 0 ? "🟢 *TARGET HIT (PROFIT BOOKED)*" : "🔴 *STOP LOSS HIT (EXIT)*";
+        double pnlPct = ((exitPrice - position.getEntryPrice()) / position.getEntryPrice()) * 100.0;
+        String msg = String.format(
+                "%s\n" +
+                "━━━━━━━━━━━━━━━━━━━━━\n" +
+                "📌 *Stock*: `%s`\n" +
+                "📥 *Entry Price*: `Rs %.2f`\n" +
+                "📤 *Exit Price*: `Rs %.2f`\n" +
+                "💵 *Net PnL*: `%sRs %.2f` (%+.2f%%)\n" +
+                "💼 *Total Capital*: `Rs %.2f`\n" +
+                "━━━━━━━━━━━━━━━━━━━━━",
+                pnlHeader, position.getSymbol(), position.getEntryPrice(), exitPrice,
+                (netPnl >= 0 ? "+" : ""), netPnl, pnlPct,
+                config.getAvailableCapital());
         telegramService.sendMessage(msg);
     }
 }

@@ -26,7 +26,7 @@ public class GeminiAiService {
     @Value("${gemini.api.key:}")
     private String apiKey;
 
-    @Value("${gemini.api.model:gemini-1.5-flash}")
+    @Value("${gemini.api.model:gemini-3.8-flash}")
     private String model;
 
     private volatile ModelEndpoint workingEndpoint = null;
@@ -73,6 +73,27 @@ public class GeminiAiService {
                 if (msg.contains("401") || msg.contains("403") || msg.contains("api_key_invalid") || msg.contains("permission_denied")) {
                     break;
                 }
+            }
+        }
+
+        // If Google suggested a specific model in the error message (e.g. models/gemini-3.8-flash), try it immediately!
+        if (response == null && lastException != null) {
+            String rawMsg = lastException.getMessage() != null ? lastException.getMessage() : "";
+            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("models/([a-zA-Z0-9.-]+)").matcher(rawMsg);
+            while (matcher.find()) {
+                String suggested = matcher.group(1);
+                log.info("Detected Google suggested model in error message: '{}'. Testing immediately...", suggested);
+                for (String ver : new String[]{"v1beta", "v1"}) {
+                    try {
+                        ModelEndpoint ep = new ModelEndpoint(ver, suggested);
+                        response = sendGenerateContentRequest(ep, prompt);
+                        successfulEndpoint = ep;
+                        break;
+                    } catch (Exception ex) {
+                        lastException = ex;
+                    }
+                }
+                if (response != null) break;
             }
         }
 
@@ -132,16 +153,21 @@ public class GeminiAiService {
             candidates.add(workingEndpoint);
         }
 
-        // 2. If user configured a specific model via property/environment variable
+        // 2. Google's current default for new API keys (Gemini 3.8 Flash)
+        candidates.add(new ModelEndpoint("v1beta", "gemini-3.8-flash"));
+        candidates.add(new ModelEndpoint("v1", "gemini-3.8-flash"));
+
+        // 3. If user configured a specific model via property/environment variable
         if (model != null && !model.isBlank()) {
             String clean = model.trim().startsWith("models/") ? model.trim().substring(7) : model.trim();
-            candidates.add(new ModelEndpoint("v1", clean));
             candidates.add(new ModelEndpoint("v1beta", clean));
+            candidates.add(new ModelEndpoint("v1", clean));
         }
 
-        // 3. Official stable production and beta models
-        candidates.add(new ModelEndpoint("v1", "gemini-1.5-flash"));
+        // 4. Other official stable production and beta models
+        candidates.add(new ModelEndpoint("v1beta", "gemini-2.5-flash"));
         candidates.add(new ModelEndpoint("v1beta", "gemini-2.0-flash"));
+        candidates.add(new ModelEndpoint("v1", "gemini-1.5-flash"));
         candidates.add(new ModelEndpoint("v1", "gemini-1.5-pro"));
         candidates.add(new ModelEndpoint("v1beta", "gemini-1.5-flash-latest"));
         candidates.add(new ModelEndpoint("v1beta", "gemini-2.0-flash-exp"));
@@ -202,8 +228,14 @@ public class GeminiAiService {
                             }
                         }
 
-                        // Prioritize flash models, then pro, then any candidate
-                        Optional<String> chosen = candidates.stream().filter(c -> c.contains("flash")).findFirst();
+                        // Prioritize: 3.8-flash -> any flash -> any pro -> any candidate
+                        Optional<String> chosen = candidates.stream().filter(c -> c.contains("3.8-flash")).findFirst();
+                        if (chosen.isEmpty()) {
+                            chosen = candidates.stream().filter(c -> c.contains("flash")).findFirst();
+                        }
+                        if (chosen.isEmpty()) {
+                            chosen = candidates.stream().filter(c -> c.contains("pro")).findFirst();
+                        }
                         if (chosen.isEmpty()) {
                             chosen = candidates.stream().findFirst();
                         }
